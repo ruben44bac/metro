@@ -7,7 +7,8 @@ defmodule Metro.RouteHandler do
   @spec find_route(binary, binary) ::
           {:error, %{message: binary}} | {:ok, %{instructions: [map], lines: [map]}}
   def find_route(origin, destination) do
-    {:ok, file} = File.read("/Users/santiagodesarrollo1/Documents/metro.kml")
+    path = Path.join(File.cwd!, "metro.kml")
+    {:ok, file} = File.read(path)
     kml = XmlToMap.naive_map(file)
       |> Map.get("kml")
       |> Map.get("Document")
@@ -217,9 +218,15 @@ defmodule Metro.RouteHandler do
       |> case do
         nil -> make_last_transfer(lines, line_origin, line_destination_id, station_origin, station_destination, arr)
         next_transfer ->
-          new_arr = make_transfer(lines, next_transfer, option, transfer, line_origin, line_destination_id, station_origin, station_destination, other, arr)
+          data = make_transfer(lines, next_transfer, option, transfer, line_origin, line_destination_id, station_origin)
+          new_arr = if arr |> length == 0 do
+            data.new_arr
+          else
+            data.new_arr
+              |> Map.put(:instructions, data.new_arr.instructions |> List.delete_at(0))
+          end
           arr = arr ++ [new_arr]
-          build_options_individual(other, option, line_destination_id, arr, lines, station_destination_aux, station_destination)
+          build_options_individual(other, option, line_destination_id, arr, lines, data.station_destination, station_destination)
       end
   end
 
@@ -233,7 +240,7 @@ defmodule Metro.RouteHandler do
     arr ++ [new_arr]
   end
 
-  defp make_transfer(lines, next_transfer, option, transfer, line_origin, line_destination_id, station_origin, station_destination) do
+  defp make_transfer(lines, next_transfer, option, transfer, line_origin, line_destination_id, station_origin) do
     line_destination = lines
       |> Enum.find(fn l -> l.id == next_transfer.line_origin_id end)
     station_destination_aux = option
@@ -246,12 +253,7 @@ defmodule Metro.RouteHandler do
       end
     new_arr = make_path(line_origin, line_destination, station_origin, station_destination_aux)
       |> List.first
-    if arr |> length == 0 do
-      new_arr
-    else
-      new_arr
-        |> Map.put(:instructions, new_arr.instructions |> List.delete_at(0))
-    end
+    %{station_destination: station_destination_aux, new_arr: new_arr}
   end
 
   defp get_station_destination(stations, line_destination_id) do
