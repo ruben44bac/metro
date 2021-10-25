@@ -9,18 +9,36 @@ defmodule Metro.RouteHandler do
       |> Map.get("Folder")
     stations = kml
       |> LineHandler.build_stations()
-    kml
-      |> LineHandler.build_lines(stations)
-      |> find_route(origin, destination)
+    origin = LineHandler.clean_string(origin)
+    destination = LineHandler.clean_string(destination)
+    validate_station(kml, stations, origin, destination)
+  end
+
+  def validate_station(kml, stations, origin, destination) do
+    valid_origin = validate_station(stations, origin)
+    valid_destination = validate_station(stations, destination)
+    if valid_origin && valid_destination do
+      data = kml
+        |> LineHandler.build_lines(stations)
+        |> find_route(origin, destination)
+      {:ok, data}
+    else
+      {:error, %{message: "#{if !valid_origin && !valid_destination, do: "No encontré ni la estación origen ni la destino 😰", else: "No encontré la estación #{if !valid_origin, do: "origen", else: "destino"}" }"}}
+    end
+  end
+
+  def validate_station(stations, name) do
+    stations
+      |> Enum.any?(fn s -> s.name_clean == name end)
   end
 
   defp find_route(lines, origin, destination) do
     line_origin = get_line_by_name_station(lines, origin)
     station_origin = line_origin.stations
-      |> Enum.find(fn l -> l.name == origin end)
+      |> Enum.find(fn l -> l.name_clean == origin end)
     line_destination = get_line_by_name_station(lines, destination, line_origin.id)
     station_destination = line_destination.stations
-      |> Enum.find(fn l -> l.name == destination end)
+      |> Enum.find(fn l -> l.name_clean == destination end)
     instructions = if line_origin.id == line_destination.id do
       direction = get_direction(station_origin, station_destination, line_origin)
       instruction = Map.new
@@ -88,7 +106,7 @@ defmodule Metro.RouteHandler do
       |> Map.put(:transfer, false)
       |> Map.put(:destination, station_transfer)
     station_transfer_aux = line_destination.stations
-      |> Enum.find(fn e -> e.name == station_transfer.name end)
+      |> Enum.find(fn e -> e.name_clean == station_transfer.name_clean end)
     direction = get_direction(station_transfer_aux, station_destination, line_destination)
     instruction_2 = Map.new
       |> Map.put(:direction, direction)
@@ -101,12 +119,12 @@ defmodule Metro.RouteHandler do
 
   defp get_line_by_name_station(lines, origin) do
     lines
-    |> Enum.find(fn l -> l.stations |> Enum.any?(fn e -> e.name == origin end) end)
+    |> Enum.find(fn l -> l.stations |> Enum.any?(fn e -> e.name_clean == origin end) end)
   end
 
   defp get_line_by_name_station(lines, origin, line_id) do
     lines
-    |> Enum.find(fn l -> l.stations |> Enum.any?(fn e -> e.name == origin end) && l.id == line_id end)
+    |> Enum.find(fn l -> l.stations |> Enum.any?(fn e -> e.name_clean == origin end) && l.id == line_id end)
     |> case do
       nil -> get_line_by_name_station(lines, origin)
       val -> val

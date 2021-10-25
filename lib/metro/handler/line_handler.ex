@@ -6,6 +6,7 @@ defmodule Metro.LineHandler do
       |> Map.get("Placemark")
       |> Enum.map(fn e -> Map.new
         |> Map.put(:name, e["name"])
+        |> Map.put(:name_clean, e["name"] |> clean_string)
         |> Map.put(:description, e["description"])
         |> Map.merge(build_station(e["Point"]["coordinates"]))
       end)
@@ -18,6 +19,13 @@ defmodule Metro.LineHandler do
       |> build_line([], stations, 1)
     lines
       |> build_transfers(lines, [])
+  end
+
+  def clean_string(name) do
+    name
+      |> String.downcase
+      |> String.normalize(:nfd)
+      |> String.replace(~r/[^A-z\s]/u, "")
   end
 
   defp build_station(station) do
