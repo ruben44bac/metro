@@ -45,7 +45,8 @@ defmodule Metro.MixProject do
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
       {:elixir_xml_to_map, "~> 2.0"},
-      {:credo, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:distillery, "~> 2.1"}
     ]
   end
 
