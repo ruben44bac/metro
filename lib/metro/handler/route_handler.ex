@@ -16,13 +16,24 @@ defmodule Metro.RouteHandler do
 
   defp find_route(lines, origin, destination) do
     line_origin = get_line_by_name_station(lines, origin)
-    _station_origin = line_origin.stations
+    station_origin = line_origin.stations
       |> Enum.find(fn l -> l.name == origin end)
     line_destination = get_line_by_name_station(lines, destination, line_origin.id)
-    _station_destination = line_destination.stations
+    station_destination = line_destination.stations
       |> Enum.find(fn l -> l.name == destination end)
-
-    %{lines: lines}
+    instructions = if line_origin.id == line_destination.id do
+      direction = get_direction(station_origin, station_destination, line_origin)
+      instruction = Map.new
+        |> Map.put(:direction, direction)
+        |> Map.put(:origin, station_origin)
+        |> Map.put(:destination, station_destination)
+        |> Map.put(:distance, Kernel.abs(station_origin.id - station_destination.id))
+        |> Map.put(:transfer, false)
+      [[instruction]]
+    else
+      []
+    end
+    %{instructions: instructions, lines: lines}
   end
 
   defp get_line_by_name_station(lines, origin) do
@@ -36,6 +47,16 @@ defmodule Metro.RouteHandler do
     |> case do
       nil -> get_line_by_name_station(lines, origin)
       val -> val
+    end
+  end
+
+  defp get_direction(station_origin, station_destination, line) do
+    if station_origin.id > station_destination.id do
+      line.stations
+        |> List.first
+    else
+      line.stations
+        |> List.last
     end
   end
 
