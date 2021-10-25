@@ -1,7 +1,11 @@
 defmodule MetroWeb.PageController do
+  @moduledoc """
+  PageController is the principal controller API
+  """
   use MetroWeb, :controller
   alias Metro.RouteHandler
 
+  @spec find_route(Plug.Conn.t(), any) :: Plug.Conn.t()
   def find_route(conn, %{"origen" => origen, "destino" => destino}) do
     RouteHandler.find_route(origen, destino)
       |> response_find_route(conn)
@@ -21,7 +25,7 @@ defmodule MetroWeb.PageController do
     render_json(data, conn, 400)
   end
 
-  def render_json(response, conn, status) do
+  defp render_json(response, conn, status) do
     json(put_status(conn, status), response)
   end
 end

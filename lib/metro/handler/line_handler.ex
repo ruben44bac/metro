@@ -1,5 +1,9 @@
 defmodule Metro.LineHandler do
+  @moduledoc """
+  LineHandler build the lines and lines stations
+  """
 
+  @spec build_stations(any) :: list
   def build_stations(kml) do
     kml
       |> Enum.at(1)
@@ -12,6 +16,7 @@ defmodule Metro.LineHandler do
       end)
   end
 
+  @spec build_lines(any, any) :: [%{id: pos_integer, name: any, stations: list, transfers: list}]
   def build_lines(kml, stations) do
     lines = kml
       |> Enum.at(0)
@@ -21,6 +26,7 @@ defmodule Metro.LineHandler do
       |> build_transfers(lines, [])
   end
 
+  @spec clean_string(binary) :: binary
   def clean_string(name) do
     name
       |> String.downcase

@@ -1,6 +1,11 @@
 defmodule Metro.RouteHandler do
+  @moduledoc """
+  RouteHandler is in charge of obtaining the possible routes to travel between stations
+  """
   alias Metro.LineHandler
 
+  @spec find_route(binary, binary) ::
+          {:error, %{message: binary}} | {:ok, %{instructions: [map], lines: [map]}}
   def find_route(origin, destination) do
     {:ok, file} = File.read("/Users/santiagodesarrollo1/Documents/metro.kml")
     kml = XmlToMap.naive_map(file)
@@ -14,7 +19,7 @@ defmodule Metro.RouteHandler do
     validate_station(kml, stations, origin, destination)
   end
 
-  def validate_station(kml, stations, origin, destination) do
+  defp validate_station(kml, stations, origin, destination) do
     valid_origin = validate_station(stations, origin)
     valid_destination = validate_station(stations, destination)
     if valid_origin && valid_destination do
@@ -23,13 +28,21 @@ defmodule Metro.RouteHandler do
         |> find_route(origin, destination)
       {:ok, data}
     else
-      {:error, %{message: "#{if !valid_origin && !valid_destination, do: "No encontré ni la estación origen ni la destino 😰", else: "No encontré la estación #{if !valid_origin, do: "origen", else: "destino"}" }"}}
+      {:error, %{message: get_error_message(valid_origin, valid_destination)}}
     end
   end
 
-  def validate_station(stations, name) do
+  defp validate_station(stations, name) do
     stations
       |> Enum.any?(fn s -> s.name_clean == name end)
+  end
+
+  defp get_error_message(valid_origin, valid_destination) do
+    if !valid_origin && !valid_destination do
+      "No encontré ni la estación origen ni la destino 😰"
+    else
+      "No encontré la estación #{if valid_origin, do: "destino", else: "origen"}"
+    end
   end
 
   defp find_route(lines, origin, destination) do
@@ -203,7 +216,10 @@ defmodule Metro.RouteHandler do
       |> Enum.find(fn o -> o.nivel == (transfer.nivel + 1) end)
       |> case do
         nil -> make_last_transfer(lines, line_origin, line_destination_id, station_origin, station_destination, arr)
-        next_transfer -> make_transfer(lines, next_transfer, option, transfer, line_origin, line_destination_id, station_origin, station_destination, other, arr)
+        next_transfer ->
+          new_arr = make_transfer(lines, next_transfer, option, transfer, line_origin, line_destination_id, station_origin, station_destination, other, arr)
+          arr = arr ++ [new_arr]
+          build_options_individual(other, option, line_destination_id, arr, lines, station_destination_aux, station_destination)
       end
   end
 
@@ -217,27 +233,30 @@ defmodule Metro.RouteHandler do
     arr ++ [new_arr]
   end
 
-  defp make_transfer(lines, next_transfer, option, transfer, line_origin, line_destination_id, station_origin, station_destination, other, arr) do
+  defp make_transfer(lines, next_transfer, option, transfer, line_origin, line_destination_id, station_origin, station_destination) do
     line_destination = lines
       |> Enum.find(fn l -> l.id == next_transfer.line_origin_id end)
     station_destination_aux = option
       |> Enum.find(fn o -> o.nivel == (transfer.nivel + 2) end)
       |> case do
         nil -> line_destination.stations
-          |> Enum.find(fn e -> e.transfers |> Enum.any?(fn t -> t == line_destination_id end) end)
+          |> get_station_destination(line_destination_id)
         val -> line_destination.stations
-          |> Enum.find(fn e -> e.transfers |> Enum.any?(fn t -> t == val.line_origin_id end) end)
+          |> get_station_destination(val.line_origin_id)
       end
     new_arr = make_path(line_origin, line_destination, station_origin, station_destination_aux)
       |> List.first
-    new_arr = if arr |> length == 0 do
+    if arr |> length == 0 do
       new_arr
     else
       new_arr
         |> Map.put(:instructions, new_arr.instructions |> List.delete_at(0))
     end
-    arr = arr ++ [new_arr]
-    build_options_individual(other, option, line_destination_id, arr, lines, station_destination_aux, station_destination)
+  end
+
+  defp get_station_destination(stations, line_destination_id) do
+    stations
+      |> Enum.find(fn e -> e.transfers |> Enum.any?(fn t -> t == line_destination_id end) end)
   end
 
   defp get_direction(station_origin, station_destination, line) do
