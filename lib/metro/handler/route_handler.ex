@@ -8,9 +8,11 @@ defmodule Metro.RouteHandler do
           {:error, %{message: binary}} | {:ok, %{instructions: [map], lines: [map]}}
   def find_route(origin, destination) do
     path = Path.join("./", "metro.kml")
-    File.ls("./")
-      |> IO.inspect(label: "ls -> ")
-    {:ok, file} = File.read(path)
+    file = File.read(path)
+      |> case do
+        {:error, _any} -> Metro.File.get_file
+        {:ok, file} -> file
+      end
     kml = XmlToMap.naive_map(file)
       |> Map.get("kml")
       |> Map.get("Document")
