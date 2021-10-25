@@ -12,10 +12,12 @@ defmodule Metro.LineHandler do
   end
 
   def build_lines(kml, stations) do
-    kml
+    lines = kml
       |> Enum.at(0)
       |> Map.get("Placemark")
       |> build_line([], stations, 1)
+    lines
+      |> build_transfers(lines, [])
   end
 
   defp build_station(station) do
@@ -56,5 +58,39 @@ defmodule Metro.LineHandler do
       |> Map.put(:line_id, line_id)
       |> Map.put(:line_name, line_name)
   end
+
+  defp build_transfers([line | other], lines, arr) do
+    stations = lines
+      |> List.delete(line)
+      |> find_transfers(line.stations, [])
+    transfers = stations
+      |> Enum.map(fn e -> e.transfers end)
+      |> List.flatten
+      |> Enum.uniq
+      |> Enum.sort
+    line_update = line
+      |> Map.put(:stations, stations)
+      |> Map.put(:transfers, transfers)
+    build_transfers(other, lines, arr ++ [line_update])
+  end
+
+  defp build_transfers([], _lines, arr), do: arr
+
+  defp find_transfers(lines, [station | other], stations) do
+    transfers = lines
+      |> Enum.map(fn l -> l.stations
+        |> Enum.find(fn e -> e.name == station.name end)
+        |> case do
+          nil -> nil
+          _val -> l.id
+        end
+      end)
+      |> Enum.filter(fn l -> l != nil  end)
+    station_update = station
+      |> Map.put(:transfers, transfers)
+    find_transfers(lines, other, stations ++ [station_update])
+  end
+
+  defp find_transfers(_lines, [], stations), do: stations
 
 end
